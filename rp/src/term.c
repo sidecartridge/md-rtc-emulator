@@ -27,6 +27,16 @@ static const Command *commands;
 // Number of commands in the table
 static size_t numCommands = 0;
 
+// Command level
+static uint8_t commandLevel = TERM_COMMAND_LEVEL_SINGLE_KEY;
+
+// last single key command
+static char lastSingleKeyCommand = 0;
+
+uint8_t term_getCommandLevel(void) { return commandLevel; }
+
+void term_setCommandLevel(uint8_t level) { commandLevel = level; }
+
 // Setter for commands and numCommands
 void term_setCommands(const Command *cmds, size_t count) {
   commands = cmds;
@@ -47,7 +57,21 @@ void term_setCommands(const Command *cmds, size_t count) {
 static inline void __not_in_flash_func(handle_protocol_command)(
     const TransmissionProtocol *protocol) {
   // Copy the content of protocol to last_protocol
-  memcpy(&lastProtocol, protocol, sizeof(TransmissionProtocol));
+  // Copy the 8-byte header directly
+  lastProtocol.command_id = protocol->command_id;
+  lastProtocol.payload_size = protocol->payload_size;
+  lastProtocol.bytes_read = protocol->bytes_read;
+  lastProtocol.final_checksum = protocol->final_checksum;
+
+  // Sanity check: clamp payload_size to avoid overflow
+  uint16_t size = protocol->payload_size;
+  if (size > MAX_PROTOCOL_PAYLOAD_SIZE) {
+    size = MAX_PROTOCOL_PAYLOAD_SIZE;
+  }
+
+  // Copy only used payload bytes
+  memcpy(lastProtocol.payload, protocol->payload, size);
+
   lastProtocolValid = true;
 };
 
@@ -60,17 +84,19 @@ static inline void __not_in_flash_func(handle_protocol_checksum_error)(
 // Interrupt handler for DMA completion
 void __not_in_flash_func(term_dma_irq_handler_lookup)(void) {
   // Read the rom3 signal and if so then process the command
-  bool rom3Gpio = (1UL << ROM3_GPIO) & sio_hw->gpio_in;
-  // bool rom4_gpio = (1ul << ROM4_GPIO) & sio_hw->gpio_in;
-  // DPRINTF("ROM3_GPIO: %d ROM4_GPIO: %d\n", rom3_gpio, rom4_gpio);
-
   dma_hw->ints1 = 1U << 2;
 
-  // Read the ROM3_GPIO and if active then process the command
-  if (!rom3Gpio) {
-    // Read the address to process and invert the highest bit
-    uint16_t addrLsb = dma_hw->ch[2].al3_read_addr_trig ^ ADDRESS_HIGH_BIT;
-    tprotocol_parse(addrLsb, handle_protocol_command,
+  // Read once to avoid redundant hardware access
+  uint32_t addr = dma_hw->ch[2].al3_read_addr_trig;
+
+  // Check ROM3 signal (bit 16)
+  // We expect that the ROM3 signal is not set very often, so this should help
+  // the compilar to run faster
+  if (__builtin_expect(addr & 0x00010000, 0)) {
+    // Invert highest bit of low word to get 16-bit address
+    uint16_t addr_lsb = (uint16_t)(addr ^ ADDRESS_HIGH_BIT);
+
+    tprotocol_parse(addr_lsb, handle_protocol_command,
                     handle_protocol_checksum_error);
   }
 }
@@ -87,6 +113,9 @@ static uint8_t prevCursorY = 0;
 static char inputBuffer[TERM_INPUT_BUFFER_SIZE];
 static size_t inputLength = 0;
 
+// Getter method for inputBuffer
+char *term_getInputBuffer(void) { return inputBuffer; }
+
 // Clears entire screen buffer and resets cursor
 void term_clearScreen(void) {
   memset(screen, 0, TERM_SCREEN_SIZE);
@@ -95,12 +124,32 @@ void term_clearScreen(void) {
   display_termClear();
 }
 
+// Clears the input buffer
+void term_clearInputBuffer(void) {
+  memset(inputBuffer, 0, TERM_INPUT_BUFFER_SIZE);
+  inputLength = 0;
+}
+
+// Custom scrollup function to scroll except for the last row
+void termScrollupBuffer(uint16_t blankBytes) {
+  // blank bytes is the number of bytes to blank out at the bottom of the
+  // screen
+
+  unsigned char *u8g2Buffer = u8g2_GetBufferPtr(display_getU8g2Ref());
+  memmove(u8g2Buffer, u8g2Buffer + blankBytes,
+          DISPLAY_BUFFER_SIZE - blankBytes -
+              TERM_SCREEN_SIZE_X * DISPLAY_TERM_CHAR_HEIGHT);
+  memset(u8g2Buffer + DISPLAY_BUFFER_SIZE - blankBytes -
+             TERM_SCREEN_SIZE_X * DISPLAY_TERM_CHAR_HEIGHT,
+         0, blankBytes);
+}
+
 // Scrolls the screen up by one row
 static void termScrollUp(void) {
   memmove(screen, screen + TERM_SCREEN_SIZE_X,
           TERM_SCREEN_SIZE - TERM_SCREEN_SIZE_X);
   memset(screen + TERM_SCREEN_SIZE - TERM_SCREEN_SIZE_X, 0, TERM_SCREEN_SIZE_X);
-  display_scrollup(TERM_DISPLAY_ROW_BYTES);
+  termScrollupBuffer(TERM_DISPLAY_ROW_BYTES);
 }
 
 // Prints a character to the screen, handles scrolling
@@ -287,8 +336,8 @@ void term_printString(const char *str) {
     }
     str++;
   }
-  // If the string ends while still in ESC state, flush the buffered characters
-  // as normal text.
+  // If the string ends while still in ESC state, flush the buffered
+  // characters as normal text.
   if (state == STATE_ESC) {
     for (size_t i = 0; i < escLen; i++) {
       termRenderChar(escBuffer[i]);
@@ -307,6 +356,7 @@ static void termInputChar(char chr) {
     // If we have chars in input_buffer, remove last char
     if (inputLength > 0) {
       inputLength--;
+      inputBuffer[inputLength] = '\0';  // Null-terminate the string
       // Also reflect on screen
       // same as term_backspace
       if (cursorX == 0) {
@@ -331,61 +381,87 @@ static void termInputChar(char chr) {
     return;
   }
 
-  // If it's newline or carriage return, finalize the line
-  if (chr == '\n' || chr == '\r') {
-    // Render newline on screen
-    termRenderChar('\n');
-
-    // Process input_buffer
-    // Split the input into command and argument
-    char command[TERM_INPUT_BUFFER_SIZE] = {0};
-    char arg[TERM_INPUT_BUFFER_SIZE] = {0};
-    sscanf(inputBuffer, "%63s %63[^\n]", command,
-           arg);  // Split at the first space
-
-    bool commandFound = false;
+  if (commandLevel == TERM_COMMAND_LEVEL_SINGLE_KEY) {
+    DPRINTF("Single key command: %c\n", chr);
     for (size_t i = 0; i < numCommands; i++) {
-      if (strcmp(command, commands[i].command) == 0) {
-        commands[i].handler(arg);  // Pass the argument to the handler
-        commandFound = true;
+      if (chr == commands[i].command[0]) {
+        lastSingleKeyCommand = chr;
+        commands[i].handler(NULL);  // Pass the argument to the handler
+        break;
       }
     }
-    if ((!commandFound) && (strlen(command) > 0)) {
-      // The custom unknown command manager is called when the command is empty
-      // in the command table. This is useful to manage custom entries.
-      for (size_t i = 0; i < numCommands; i++) {
-        if (strlen(commands[i].command) == 0) {
-          commands[i].handler(inputBuffer);  // Pass the argument to the handler
-        }
-      }
-    }
-
     // Reset input buffer
     memset(inputBuffer, 0, TERM_INPUT_BUFFER_SIZE);
     inputLength = 0;
-
-    term_printString("> ");
-    display_termRefresh();
-    return;
-  }
-
-  // If it's a normal character
-  // Add it to input_buffer if there's space
-  if (inputLength < TERM_INPUT_BUFFER_SIZE - 1) {
-    inputBuffer[inputLength++] = chr;
-    // Render char on screen
-    termRenderChar(chr);
-
-    // show block cursor
-
     display_termRefresh();
   } else {
-    // Buffer full, ignore or beep?
+    // If it's newline or carriage return, finalize the line
+    if (chr == '\n' || chr == '\r') {
+      // Render newline on screen
+      termRenderChar('\n');
+
+      // Process input_buffer
+      if (commandLevel == TERM_COMMAND_LEVEL_COMMAND_INPUT) {
+        // Split the input into command and argument
+        char command[TERM_INPUT_BUFFER_SIZE] = {0};
+        char arg[TERM_INPUT_BUFFER_SIZE] = {0};
+        sscanf(inputBuffer, "%63s %63[^\n]", command,
+               arg);  // Split at the first space
+        bool commandFound = false;
+        for (size_t i = 0; i < numCommands; i++) {
+          if (strcmp(command, commands[i].command) == 0) {
+            commands[i].handler(arg);  // Pass the argument to the handler
+            commandFound = true;
+          }
+        }
+        if ((!commandFound) && (strlen(command) > 0)) {
+          // The custom unknown command manager is called when the command is
+          // empty in the command table. This is useful to manage custom
+          // entries.
+          for (size_t i = 0; i < numCommands; i++) {
+            if (strlen(commands[i].command) == 0) {
+              commands[i].handler(
+                  inputBuffer);  // Pass the argument to the handler
+            }
+          }
+        }
+
+        // Reset input buffer
+        memset(inputBuffer, 0, TERM_INPUT_BUFFER_SIZE);
+        inputLength = 0;
+
+        term_printString("> ");
+        display_termRefresh();
+      }
+      if (commandLevel == TERM_COMMAND_LEVEL_DATA_INPUT) {
+        for (size_t i = 0; i < numCommands; i++) {
+          if (lastSingleKeyCommand == commands[i].command[0]) {
+            commands[i].handler(
+                inputBuffer);  // Pass the argument to the handler
+            break;
+          }
+        }
+      }
+      return;
+    }
+    // If it's a normal character
+    // Add it to input_buffer if there's space
+    if (inputLength < TERM_INPUT_BUFFER_SIZE - 1) {
+      inputBuffer[inputLength++] = chr;
+      // Render char on screen
+      termRenderChar(chr);
+
+      // show block cursor
+
+      display_termRefresh();
+    } else {
+      // Buffer full, ignore or beep?
+    }
   }
 }
 
-// For convenience, we can also have a helper function that "types" a string as
-// if typed by user
+// For convenience, we can also have a helper function that "types" a string
+// as if typed by user
 static void termTypeString(const char *str) {
   while (*str) {
     termInputChar(*str);
@@ -442,13 +518,13 @@ void term_init(void) {
   display_refresh();
 }
 
-// Invoke this function to process the commands from the active loop in the main
-// function
+// Invoke this function to process the commands from the active loop in the
+// main function
 void __not_in_flash_func(term_loop)() {
   if (lastProtocolValid) {
     // Shared by all commands
-    // Read the random token from the command and increment the payload pointer
-    // to the first parameter available in the payload
+    // Read the random token from the command and increment the payload
+    // pointer to the first parameter available in the payload
     uint32_t randomToken = TPROTO_GET_RANDOM_TOKEN(lastProtocol.payload);
     uint16_t *payloadPtr = ((uint16_t *)(lastProtocol).payload);
     uint16_t commandId = lastProtocol.command_id;
@@ -457,6 +533,7 @@ void __not_in_flash_func(term_loop)() {
         lastProtocol.command_id, lastProtocol.payload_size, randomToken,
         lastProtocol.final_checksum);
 
+#if defined(_DEBUG) && (_DEBUG != 0)
     // Jump the random token
     TPROTO_NEXT32_PAYLOAD_PTR(payloadPtr);
 
@@ -485,14 +562,16 @@ void __not_in_flash_func(term_loop)() {
       DPRINTF("Payload D6: 0x%04X\n", TPROTO_GET_PAYLOAD_PARAM32(payloadPtr));
       TPROTO_NEXT32_PAYLOAD_PTR(payloadPtr);
     }
+#endif
 
     // Handle the command
     switch (lastProtocol.command_id) {
       case APP_TERMINAL_START: {
         display_termStart(DISPLAY_TILES_WIDTH, DISPLAY_TILES_HEIGHT);
+        commandLevel = TERM_COMMAND_LEVEL_SINGLE_KEY;
+        term_clearInputBuffer();
         term_clearScreen();
-        term_printString("Type 'help' for available commands.\n");
-        termInputChar('\n');
+        termInputChar('m');  // Force menu
         SEND_COMMAND_TO_DISPLAY(DISPLAY_COMMAND_TERM);
         DPRINTF("Send command to display: DISPLAY_COMMAND_TERM\n");
       } break;

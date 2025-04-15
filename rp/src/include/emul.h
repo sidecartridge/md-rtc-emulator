@@ -16,14 +16,12 @@
 #include "aconfig.h"
 #include "constants.h"
 #include "debug.h"
-#include "download.h"
-#include "ff.h"
 #include "httpc/httpc.h"
 #include "memfunc.h"
 #include "network.h"
 #include "pico/stdlib.h"
 #include "romemul.h"
-#include "sdcard.h"
+#include "rtc.h"
 #include "select.h"
 #include "term.h"
 
@@ -33,8 +31,9 @@
 #define SLEEP_LOOP_MS 100
 
 enum {
-  APP_DIRECT = 0,       // Emulation
-  APP_MODE_SETUP = 255  // Setup
+  APP_EMULATION_RUNTIME = 0,  // Emulation during runtime
+  APP_EMULATION_INIT = 1,     // Emulation init
+  APP_MODE_SETUP = 255        // Setup
 };
 
 #define APP_MODE_SETUP_STR "255"  // App mode setup string

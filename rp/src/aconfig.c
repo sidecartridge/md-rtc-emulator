@@ -2,8 +2,14 @@
 
 // We don't have any variables because this is the placeholder app
 static SettingsConfigEntry defaultEntries[] = {
-    {ACONFIG_PARAM_FOLDER, SETTINGS_TYPE_STRING, "/test"},
     {ACONFIG_PARAM_MODE, SETTINGS_TYPE_INT, "255"},  // 255: Menu mode
+    {ACONFIG_PARAM_RTC_NTP_SERVER_HOST, SETTINGS_TYPE_STRING,
+     "pool.ntp.org"},  // NTP server host
+    {ACONFIG_PARAM_RTC_NTP_SERVER_PORT, SETTINGS_TYPE_INT,
+     "123"},  // NTP server port
+    {ACONFIG_PARAM_RTC_TYPE, SETTINGS_TYPE_STRING, "SIDECART"},  // RTC type
+    {ACONFIG_PARAM_RTC_UTC_OFFSET, SETTINGS_TYPE_STRING, "0"},   // UTC offset
+    {ACONFIG_PARAM_RTC_Y2K_PATCH, SETTINGS_TYPE_BOOL, "true"},   // Y2K patch
 };
 
 // Create a global context for our settings

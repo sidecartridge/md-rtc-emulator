@@ -17,7 +17,8 @@
 #define MEM_LIBC_MALLOC 1
 #else
 // MEM_LIBC_MALLOC is incompatible with non polling versions
-#define MEM_LIBC_MALLOC 0
+// Must be undefined!!!! MEM_LIBC_MALLOC to 0 will fail
+#undef MEM_LIBC_MALLOC
 #endif
 
 #define MEM_ALIGNMENT 4

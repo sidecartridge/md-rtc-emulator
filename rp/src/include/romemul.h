@@ -36,5 +36,6 @@ int init_romemul(IRQInterceptionCallback requestCallback,
 
 void dma_irqHandlerLookup(void);
 void dma_irqHandlerAddress(void);
+void dma_setResponseCB(IRQInterceptionCallback responseCallback);
 
 #endif  // ROMEMUL_H

@@ -592,7 +592,7 @@ wifi_sta_conn_process_status_t network_wifiStaConnect() {
     wifi_sta_conn_status_t status =
         network_wifiConnStatus(&wifiConnStatusTime, wifiConnPollingInterval);
 #if PICO_CYW43_ARCH_POLL
-    network_safe_poll();
+    network_safePoll();
     cyw43_arch_wait_for_work_until(make_timeout_time_ms(2 * SEC_TO_MS));
 #else
     sleep_ms(NETWORK_POLLING_INTERVAL);

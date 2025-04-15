@@ -1,10 +1,10 @@
 {
   "uuid": "<APP_UUID>",
-  "name": "APP DEV Template",
-  "description": "Microfirmware Application Template for Atari ST",
+  "name": "Real Time Clock",
+  "description": "Real Time Clock reading the values from a remote NTP server.",
   "image": "https://placehold.co/256x256/png",
   "tags": [
-    "Sample",
+    "RTC"
   ],
   "devices": [
     "Atari ST",
@@ -12,7 +12,7 @@
     "Atari MegaST",
     "Atari MegaSTE"
   ],
-  "binary": "https://atarist.sidecartridge.com/<APP_UUID>-<APP_VERSION>.uf2",
+  "binary": "<APP_BINARY_URL>",
   "md5": "<BINARY_MD5_HASH>",
   "version": "<APP_VERSION>"
 }

@@ -178,6 +178,27 @@ static int initRomEmulator(PIO pio, IRQInterceptionCallback requestCallback,
   DPRINTF("ROM emulator initialized.\n");
   return smReadROM;
 }
+void dma_setResponseCB(IRQInterceptionCallback responseCallback) {
+  // Change the the response callback function
+  if (responseCallback != NULL) {
+    DPRINTF(
+        "Changing DMA callback function for lookup_data_rom_dma_channel.\n");
+    // Disable DMA IRQ before modifying
+    dma_channel_set_irq1_enabled(lookupDataRomDmaChannel, false);
+    irq_set_enabled(DMA_IRQ_1, false);
+
+    // Remove any existing handler first
+    irq_remove_handler(DMA_IRQ_1, irq_get_exclusive_handler(DMA_IRQ_1));
+
+    // Now safely set the new one
+    irq_set_exclusive_handler(DMA_IRQ_1, responseCallback);
+
+    // Re-enable
+    dma_channel_set_irq1_enabled(lookupDataRomDmaChannel, true);
+    irq_set_enabled(DMA_IRQ_1, true);
+    DPRINTF("DMA callback function changed.\n");
+  }
+}
 
 int init_romemul(IRQInterceptionCallback requestCallback,
                  IRQInterceptionCallback responseCallback,

@@ -67,7 +67,9 @@
 #define DISPLAY_COMMAND_NOP 0x0       // Do nothing, clean the command buffer
 #define DISPLAY_COMMAND_RESET 0x1     // Reset the computer
 #define DISPLAY_COMMAND_CONTINUE 0x2  // Continue the boot process
-#define DISPLAY_COMMAND_START 0x3     // Continue boot process and emulation
+#define DISPLAY_COMMAND_TERMINAL \
+  0x3                              //  Terminal. Not used from RP to Computer.
+#define DISPLAY_COMMAND_START 0x4  // Continue boot process and emulation
 
 /**
  * @brief Sends a command to the display.

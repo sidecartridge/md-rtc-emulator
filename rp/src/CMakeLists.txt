@@ -40,13 +40,6 @@ else()
     message(FATAL_ERROR "Unknown BOARD_TYPE: ${BOARD_TYPE}")
 endif()
 
-# Add the env variable FATFS_SDK_PATH if it does not exist
-if(NOT DEFINED ENV{FATFS_SDK_PATH})
-    set(ENV{FATFS_SDK_PATH} ../../fatfs-sdk)
-endif()
-# Show the value
-message("FATFS_SDK_PATH: $ENV{FATFS_SDK_PATH}")
-
 # Add the env variable PICO_SDK_PATH if it does not exist
 if(NOT DEFINED ENV{PICO_SDK_PATH})
     set(ENV{PICO_SDK_PATH} ../../pico-sdk)
@@ -78,9 +71,6 @@ add_subdirectory(u8g2)
 
 # Add HTTP client library
 add_subdirectory(httpc)
-
-# Tell CMake where to find other source code
-add_subdirectory($ENV{FATFS_SDK_PATH}/src build)
   
 # Tell CMake where to find the executable source file
 add_executable(${PROJECT_NAME} 
@@ -94,14 +84,12 @@ target_sources(${PROJECT_NAME} PRIVATE
         blink.c
         display.c
         display_term.c
-        download.c
         emul.c
         gconfig.c
-        hw_config.c
         network.c
         reset.c
         romemul.c
-        sdcard.c
+        rtc.c
         select.c
         term.c
         settings/settings.c)
@@ -113,7 +101,7 @@ pico_add_extra_outputs(${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME} PRIVATE
     ${LINK_LIBRARIES}        # External or additional libraries passed as variables
     hardware_flash           # Flash memory access
-    no-OS-FatFS-SD-SDIO-SPI-RPi-Pico                # FATFS library   
+    hardware_rtc            # Real-time clock
     pico_stdlib              # Core functionality
     httpc                    # HTTP client
     settings                 # Custom settings library
@@ -123,8 +111,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # Conditionally link the CYW43 architecture library if supported
 if (PICO_CYW43_SUPPORTED)
     target_link_libraries(${PROJECT_NAME} PRIVATE
-#        pico_cyw43_arch_lwip_poll
-        pico_cyw43_arch_lwip_threadsafe_background
+        pico_cyw43_arch_lwip_poll
+#        pico_cyw43_arch_lwip_threadsafe_background
         )
 else()
     message(WARNING "CYW43 architecture not supported")

@@ -39,8 +39,10 @@
 // FLASH and RAM sections constants.
 #define ROM_BANKS 2  // Number of ROM banks to emulate
 #define FLASH_ROM_LOAD_OFFSET \
-  0xE0000  // Offset start in FLASH reserved for ROMs. Survives a reset or
-           // poweroff.
+  0x0  // Offset start in FLASH reserved for ROMs. Survives a reset or
+       // poweroff. If 0x0, it means that the 128KB of FLASH are used for the
+       // ROMs. If 0x10000, it means that the first 64KB of FLASH are used for
+       // the ROMs. The second 64KB of FLASH is not in use (ROM3 not used).
 #define FLASH_ROM4_LOAD_OFFSET FLASH_ROM_LOAD_OFFSET  // First 64KB block
 #define FLASH_ROM3_LOAD_OFFSET \
   (FLASH_ROM_LOAD_OFFSET + 0x10000)              // Second 64KB block

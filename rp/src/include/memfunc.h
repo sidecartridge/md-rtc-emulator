@@ -21,11 +21,11 @@
     COPY_FIRMWARE_TO_RAM_DMA(emulROM, emulROM_length); \
   } while (0)
 
-#define ERASE_FIRMWARE_IN_RAM()                               \
-  do {                                                        \
-    memset((void *)&__rom_in_ram_start__, 0,                  \
-           ROM_SIZE_LONGWORDS *ROM_BANKS * sizeof(uint32_t)); \
-    DPRINTF("RAM for the firmware zeroed.\n");                \
+#define ERASE_FIRMWARE_IN_RAM()                                \
+  do {                                                         \
+    memset((void *)&__rom_in_ram_start__, 0,                   \
+           ROM_SIZE_LONGWORDS * ROM_BANKS * sizeof(uint32_t)); \
+    DPRINTF("RAM for the firmware zeroed.\n");                 \
   } while (0)
 
 #define COPY_FIRMWARE_TO_RAM_MEMCPY(emulROM, emulROM_length) \
@@ -159,6 +159,34 @@
                             memory_shared_variables_offset +                  \
                             (p_shared_variable_index * 4))) =                 \
         p_shared_variable_value >> 16;                                        \
+  } while (0)
+
+/**
+ * @brief Macro to get a shared variable.
+ *
+ * This macro retrieves the 32-bit value of a shared variable at the specified
+ * index from the shared memory and assigns it to the provided destination
+ * variable.
+ *
+ * @param p_shared_variable_index The index of the shared variable.
+ * @param p_shared_variable_result The variable to store the retrieved value.
+ * @param memory_shared_address The base address of the shared memory.
+ * @param memory_shared_variables_offset The offset of the shared variables
+ * within the shared memory.
+ */
+#define GET_SHARED_VAR(p_shared_variable_index, p_shared_variable_result,     \
+                       memory_shared_address, memory_shared_variables_offset) \
+  do {                                                                        \
+    uint16_t high = *((volatile uint16_t *)(memory_shared_address +           \
+                                            memory_shared_variables_offset +  \
+                                            (p_shared_variable_index * 4)));  \
+    uint16_t low =                                                            \
+        *((volatile uint16_t *)(memory_shared_address +                       \
+                                memory_shared_variables_offset +              \
+                                (p_shared_variable_index * 4) + 2));          \
+    *p_shared_variable_result = ((uint32_t)high << 16) | low;                 \
+    DPRINTF("Getting shared variable %d = %x\n", p_shared_variable_index,     \
+            p_shared_variable_result);                                        \
   } while (0)
 
 /**

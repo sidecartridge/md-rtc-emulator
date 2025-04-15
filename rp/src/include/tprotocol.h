@@ -80,7 +80,7 @@ typedef enum {
   PAYLOAD_READ_END
 } TPParseStep;
 
-typedef struct {
+typedef struct __attribute__((packed, aligned(4))) {
   uint16_t command_id;    // Command ID
   uint16_t payload_size;  // Size of the payload
   uint16_t bytes_read;  // To keep track of how many bytes of the payload we've
