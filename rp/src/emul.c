@@ -685,8 +685,6 @@ void emul_start() {
         break;
       }
       case APP_EMULATION_INIT: {
-        // Check remote commands
-        term_loop();
         // The app is running in initialization mode
         DPRINTF("Start runtime commands...\n");
         term_printString("\n\nQuerying NTP...");
@@ -715,6 +713,8 @@ void emul_start() {
           term_printString("Error setting time :-(\n");
           appStatus = APP_MODE_SETUP;
         }
+        // Check remote commands
+        term_loop();
         break;
       }
       case APP_MODE_SETUP:
@@ -744,6 +744,7 @@ void emul_start() {
   DPRINTF("Exiting the app loop...\n");
 
   if (jumpBooster) {
+    select_coreWaitPushDisable();  // Disable the SELECT button
     sleep_ms(SLEEP_LOOP_MS);
     // We must reset the computer
     SEND_COMMAND_TO_DISPLAY(DISPLAY_COMMAND_RESET);
