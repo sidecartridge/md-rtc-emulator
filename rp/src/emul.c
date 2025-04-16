@@ -638,6 +638,14 @@ void emul_start() {
   blink_on();
 #endif
 
+  // Configure the SELECT button
+  // 1. Short press: reset the device and restart the app
+  // 2. Long press: reset the device and erase the flash.
+  select_configure();
+  select_coreWaitPush(
+      reset_device,
+      reset_deviceAndEraseFlash);  // Wait for the SELECT button to be pushed
+
   // 8. Start the main loop
   // The main loop is the core of the app. It is responsible for running the
   // app, handling the user input, and performing the tasks of the app.
