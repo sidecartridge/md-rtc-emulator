@@ -103,6 +103,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     hardware_flash           # Flash memory access
     hardware_rtc            # Real-time clock
     pico_stdlib              # Core functionality
+    pico_multicore          # Multicore support
     httpc                    # HTTP client
     settings                 # Custom settings library
     u8g2                     # for display
