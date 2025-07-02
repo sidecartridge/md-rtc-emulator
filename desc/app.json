@@ -1,18 +1,18 @@
 {
   "uuid": "<APP_UUID>",
   "name": "Real Time Clock",
-  "description": "Real Time Clock reading the values from a remote NTP server.",
+  "description": "Real Time Clock reading the values from a remote NTP server. <a target='_blank' href='https://docs.sidecartridge.com/sidecartridge-multidevice/microfirmwares/rtc_emulator/'>Learn more</a>",
   "image": "https://placehold.co/256x256/png",
   "tags": [
     "RTC"
   ],
   "devices": [
-    "Atari ST",
-    "Atari STE",
-    "Atari MegaST",
-    "Atari MegaSTE"
+    "ST",
+    "STE",
+    "MegaST",
+    "MegaSTE"
   ],
-  "binary": "<APP_BINARY_URL>",
+  "binary": "https://atarist.sidecartridge.com/<APP_UUID>-<APP_VERSION>.uf2",
   "md5": "<BINARY_MD5_HASH>",
   "version": "<APP_VERSION>"
 }
