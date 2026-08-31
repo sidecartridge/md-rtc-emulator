@@ -1,6 +1,18 @@
+<div align="center">
+
+<img src="icon.png" alt="Real Time Clock Emulator" width="180" />
+
 # SidecarTridge Multi-device Real Time Clock Emulator
 
+[![Build](https://github.com/sidecartridge/md-rtc-emulator/actions/workflows/build.yml/badge.svg)](https://github.com/sidecartridge/md-rtc-emulator/actions/workflows/build.yml)
+[![Release](https://github.com/sidecartridge/md-rtc-emulator/actions/workflows/release.yml/badge.svg)](https://github.com/sidecartridge/md-rtc-emulator/actions/workflows/release.yml)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+
+</div>
+
 This is a microfirmware application for the **SidecarTridge Multi-device**, designed to emulate a Real Time Clock (RTC) for Atari computers, including the **Atari ST, STe, Mega ST, and Mega STe**.
+
+> 🛒 **Get the hardware:** [SidecarTridge Multi-device](https://sidecartridge.com/products/sidecartridge-multidevice-atari-st/)
 
 ---
 
