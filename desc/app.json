@@ -4,7 +4,8 @@
   "description": "Real Time Clock reading the values from a remote NTP server. <a target='_blank' href='https://docs.sidecartridge.com/sidecartridge-multidevice/microfirmwares/rtc_emulator/'>Learn more</a>",
   "image": "https://raw.githubusercontent.com/sidecartridge/md-rtc-emulator/main/icon.png",
   "tags": [
-    "RTC"
+    "RTC",
+    "Emulation"
   ],
   "devices": [
     "ST",
